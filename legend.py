@@ -106,7 +106,6 @@ def simulate_one_run(start_state):
                     # 실패: 에픽 2개만 소모, 1개는 남음
                     ps["epic"] -= 2
 
-                # 이 부위는 이번 라운드에서 1번만 시도
                 continue
 
             # 우선순위 2: 에픽 부족하면 엘리트로 에픽 만들기
@@ -124,7 +123,7 @@ def simulate_one_run(start_state):
 
                 continue
 
-            # 엘리트 < 3, 에픽 < 3 이면 이 부위는 이번 라운드에서 할 게 없음
+            # 엘리트 < 3, 에픽 < 3 이면 이 부위는 이번 라운드에서 아무 것도 안 함
             # 다음 while 반복에서 전체 상태를 다시 체크
 
 
@@ -161,6 +160,7 @@ def main():
 
     results = []
     success_cash = []
+    fail_cash = []  # 실패한 회차들의 현금 사용량 기록
 
     for i in range(1, num_runs + 1):
         result = simulate_one_run(start_state)
@@ -179,6 +179,8 @@ def main():
 
         if result["success"]:
             success_cash.append(result["cash"])
+        else:
+            fail_cash.append(result["cash"])
 
     # 요약
     total_success = sum(1 for r in results if r["success"])
@@ -197,8 +199,18 @@ def main():
         print(f"  최소: {min_cash:,.0f}원")
         print(f"  최대: {max_cash:,.0f}원")
     else:
-        print("\n성공한 시뮬레이션이 없습니다. (엘리트 수량이 4부위 전설 완성에는 부족할 수 있습니다.)")
+        print("\n성공한 시뮬레이션이 없습니다.")
 
+    if fail_cash:
+        avg_fail_cash = sum(fail_cash) / len(fail_cash)
+        min_fail_cash = min(fail_cash)
+        max_fail_cash = max(fail_cash)
+        print("\n[실패한 경우 기준 현금 사용량]")
+        print(f"  평균: {avg_fail_cash:,.0f}원")
+        print(f"  최소: {min_fail_cash:,.0f}원")
+        print(f"  최대: {max_fail_cash:,.0f}원")
+    else:
+        print("\n실패한 시뮬레이션이 없습니다.")
 
 if __name__ == "__main__":
     main()
