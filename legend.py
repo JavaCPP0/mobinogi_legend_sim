@@ -43,14 +43,13 @@ def simulate_one_run(start_state, use_gacha: bool):
     use_gacha = True:
         - 재료가 모자라서 승급을 더 못 하는 순간마다,
           패션 뽑기(가챠)를 1회 돌려 재료 수급.
-        - 4부위 모두 전설이 될 때까지 계속 진행 (사실상 실패 없음).
+        - 4부위 모두 전설이 될 때까지 계속 진행.
     """
     state = copy.deepcopy(start_state)
 
     # 각 부위 상태 초기화
     part_info = {}
     for part in PARTS:
-        # 시작 시 고급/레어는 0개로 가정
         state[part].setdefault("common", 0)  # 고급
         state[part].setdefault("rare", 0)    # 레어
         state[part].setdefault("elite", 0)
@@ -63,6 +62,13 @@ def simulate_one_run(start_state, use_gacha: bool):
         }
 
     total_cash_spent = 0
+
+    # 가챠 관련 기록
+    gacha_pulls = 0
+    gacha_parts = {
+        part: {"common": 0, "rare": 0, "elite": 0, "epic": 0}
+        for part in PARTS
+    }
 
     def all_parts_done():
         return all(state[part]["legend"] >= 1 for part in PARTS)
@@ -77,6 +83,8 @@ def simulate_one_run(start_state, use_gacha: bool):
                 return {
                     "success": True,
                     "cash": total_cash_spent,
+                    "gacha_pulls": gacha_pulls,
+                    "gacha_parts": gacha_parts,
                     "parts": {
                         part: {
                             "epic_attempts": part_info[part]["epic_attempts"],
@@ -102,6 +110,8 @@ def simulate_one_run(start_state, use_gacha: bool):
                 return {
                     "success": False,
                     "cash": total_cash_spent,
+                    "gacha_pulls": gacha_pulls,
+                    "gacha_parts": gacha_parts,
                     "parts": {
                         part: {
                             "epic_attempts": part_info[part]["epic_attempts"],
@@ -162,6 +172,8 @@ def simulate_one_run(start_state, use_gacha: bool):
                 return {
                     "success": True,
                     "cash": total_cash_spent,
+                    "gacha_pulls": gacha_pulls,
+                    "gacha_parts": gacha_parts,
                     "parts": {
                         part: {
                             "epic_attempts": part_info[part]["epic_attempts"],
@@ -237,6 +249,7 @@ def simulate_one_run(start_state, use_gacha: bool):
             if not progress:
                 # 3) 더 이상 승급할 게 없으면 가챠 1회 돌려서 재료 수급
                 total_cash_spent += COST_GACHA
+                gacha_pulls += 1
 
                 r = random.random()
                 if r < GACHA_PROB_EPIC:
@@ -251,6 +264,7 @@ def simulate_one_run(start_state, use_gacha: bool):
                 # 어떤 부위에 뜨는지는 균등 분배
                 part = random.choice(PARTS)
                 state[part][rarity] += 1
+                gacha_parts[part][rarity] += 1
                 # 이후 다시 while 루프를 돌며 승급 시도
 
 
@@ -296,6 +310,8 @@ def main():
     results = []
     success_cash = []
     fail_cash = []
+    success_gacha_pulls = []
+    fail_gacha_pulls = []
 
     for i in range(1, num_runs + 1):
         result = simulate_one_run(start_state, use_gacha)
@@ -310,12 +326,28 @@ def main():
             la = pr["legend_attempts"]
             print(f"{part}: 에픽승급도전횟수:{ea}, 전설승급도전횟수:{la} {status}")
 
-        print(f"사용된 현금: {result['cash']:,.0f}원\n")
+        print(f"사용된 현금: {result['cash']:,.0f}원")
+
+        # 가챠 모드일 때만 가챠 상세 출력
+        if use_gacha:
+            print(f"가챠 뽑기 횟수: {result['gacha_pulls']}회")
+            gp = result["gacha_parts"]
+            for part in PARTS:
+                info = gp[part]
+                print(
+                    f"  {part} 가챠 획득 → "
+                    f"고급:{info['common']}, 레어:{info['rare']}, "
+                    f"엘리트:{info['elite']}, 에픽:{info['epic']}"
+                )
+
+        print()  # 빈 줄
 
         if result["success"]:
             success_cash.append(result["cash"])
+            success_gacha_pulls.append(result["gacha_pulls"])
         else:
             fail_cash.append(result["cash"])
+            fail_gacha_pulls.append(result["gacha_pulls"])
 
     # ===== 요약 출력 =====
     total_success = sum(1 for r in results if r["success"])
@@ -346,6 +378,25 @@ def main():
         print(f"  최대: {max_fail_cash:,.0f}원")
     else:
         print("\n실패한 시뮬레이션이 없습니다.")
+
+    if use_gacha:
+        if success_gacha_pulls:
+            avg_gp = sum(success_gacha_pulls) / len(success_gacha_pulls)
+            min_gp = min(success_gacha_pulls)
+            max_gp = max(success_gacha_pulls)
+            print("\n[성공한 경우 기준 가챠 뽑기 횟수]")
+            print(f"  평균: {avg_gp:,.1f}회")
+            print(f"  최소: {min_gp}회")
+            print(f"  최대: {max_gp}회")
+
+        if fail_gacha_pulls:
+            avg_fail_gp = sum(fail_gacha_pulls) / len(fail_gacha_pulls)
+            min_fail_gp = min(fail_gacha_pulls)
+            max_fail_gp = max(fail_gacha_pulls)
+            print("\n[실패한 경우 기준 가챠 뽑기 횟수]")
+            print(f"  평균: {avg_fail_gp:,.1f}회")
+            print(f"  최소: {min_fail_gp}회")
+            print(f"  최대: {max_fail_gp}회")
 
 
 if __name__ == "__main__":
