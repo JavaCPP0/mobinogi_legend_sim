@@ -1,5 +1,3 @@
-네, 지금 구조( config.py / simulation.py / main.py 분리 + 가챠 모드 업그레이드)에 맞춰서 README를 다시 정리해보겠습니다.
-그냥 README.md에 그대로 붙여 쓰셔도 됩니다.
 
 ---
 
