@@ -22,6 +22,9 @@ def simulate_one_run(start_state):
     }
 
     - 엘리트는 입력한 개수까지만 사용 가능 (추가 구매 없음)
+    - 3개 합성 규칙:
+        성공: 하위 재료 3개 소모, 상위 1개 생성
+        실패: 하위 재료 2개만 소모, 1개는 남음
     - 에픽/엘리트가 부족해서 더 이상 합성을 못 하는 순간 종료
     - 4부위 전설 1개씩이면 전체 성공, 아니면 실패
     """
@@ -92,24 +95,32 @@ def simulate_one_run(start_state):
 
             # 우선순위 1: 에픽 3개 이상이면 전설 도전
             if ps["epic"] >= 3:
-                ps["epic"] -= 3
                 total_cash_spent += COST_EPIC_TO_LEGEND
                 part_info[part]["legend_attempts"] += 1
 
                 if random.random() < PROB_EPIC_TO_LEGEND:
+                    # 성공: 에픽 3개 소모, 전설 1개 생성
+                    ps["epic"] -= 3
                     ps["legend"] += 1
+                else:
+                    # 실패: 에픽 2개만 소모, 1개는 남음
+                    ps["epic"] -= 2
 
                 # 이 부위는 이번 라운드에서 1번만 시도
                 continue
 
             # 우선순위 2: 에픽 부족하면 엘리트로 에픽 만들기
             if ps["elite"] >= 3:
-                ps["elite"] -= 3
                 total_cash_spent += COST_ELITE_TO_EPIC
                 part_info[part]["epic_attempts"] += 1
 
                 if random.random() < PROB_ELITE_TO_EPIC:
+                    # 성공: 엘리트 3개 소모, 에픽 1개 생성
+                    ps["elite"] -= 3
                     ps["epic"] += 1
+                else:
+                    # 실패: 엘리트 2개만 소모, 1개는 남음
+                    ps["elite"] -= 2
 
                 continue
 
@@ -122,6 +133,7 @@ def main():
     print("각 부위별 현재 보유한 '에픽'과 '엘리트' 개수를 입력해주세요.")
     print("목표: 머리/상의/하의/장갑 전설 1개씩 만들기")
     print("엘리트는 입력하신 수량까지만 사용할 수 있고, 떨어지면 더 이상 합성을 못 합니다.")
+    print("실패 시 재료 1개는 남는 규칙이 적용되어 있습니다.")
     print()
 
     start_state = {}
@@ -185,7 +197,7 @@ def main():
         print(f"  최소: {min_cash:,.0f}원")
         print(f"  최대: {max_cash:,.0f}원")
     else:
-        print("\n성공한 시뮬레이션이 없습니다. (엘리트 수량이 4부위 전설 완성에는 많이 부족할 수 있습니다.)")
+        print("\n성공한 시뮬레이션이 없습니다. (엘리트 수량이 4부위 전설 완성에는 부족할 수 있습니다.)")
 
 
 if __name__ == "__main__":
