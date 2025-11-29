@@ -15,14 +15,14 @@ def simulate_one_run(start_state):
     """
     start_state 예시:
     {
-        "머리":  {"elite": 13, "epic": 0},
-        "상의":  {"elite": 13, "epic": 0},
-        "하의":  {"elite": 13, "epic": 0},
-        "장갑":  {"elite": 13, "epic": 1},
+        "머리":  {"elite": 50, "epic": 0},
+        "상의":  {"elite": 40, "epic": 0},
+        "하의":  {"elite": 30, "epic": 0},
+        "장갑":  {"elite": 40, "epic": 1},
     }
 
-    - 엘리트는 유한(입력한 개수만 사용 가능)
-    - 에픽/엘리트가 부족해서 더 이상 아무 합성도 못 하는 순간 종료
+    - 엘리트는 입력한 개수까지만 사용 가능 (추가 구매 없음)
+    - 에픽/엘리트가 부족해서 더 이상 합성을 못 하는 순간 종료
     - 4부위 전설 1개씩이면 전체 성공, 아니면 실패
     """
     state = copy.deepcopy(start_state)
@@ -32,7 +32,8 @@ def simulate_one_run(start_state):
     for part in PARTS:
         state[part]["legend"] = 0
         part_info[part] = {
-            "attempts": 0,   # 엘리트→에픽, 에픽→전설 모두 포함
+            "epic_attempts": 0,    # 엘리트 -> 에픽 시도 횟수
+            "legend_attempts": 0,  # 에픽 -> 전설 시도 횟수
         }
 
     total_cash_spent = 0
@@ -48,7 +49,8 @@ def simulate_one_run(start_state):
                 "cash": total_cash_spent,
                 "parts": {
                     part: {
-                        "attempts": part_info[part]["attempts"],
+                        "epic_attempts": part_info[part]["epic_attempts"],
+                        "legend_attempts": part_info[part]["legend_attempts"],
                         "success": state[part]["legend"] >= 1,
                     }
                     for part in PARTS
@@ -72,7 +74,8 @@ def simulate_one_run(start_state):
                 "cash": total_cash_spent,
                 "parts": {
                     part: {
-                        "attempts": part_info[part]["attempts"],
+                        "epic_attempts": part_info[part]["epic_attempts"],
+                        "legend_attempts": part_info[part]["legend_attempts"],
                         "success": state[part]["legend"] >= 1,
                     }
                     for part in PARTS
@@ -91,7 +94,7 @@ def simulate_one_run(start_state):
             if ps["epic"] >= 3:
                 ps["epic"] -= 3
                 total_cash_spent += COST_EPIC_TO_LEGEND
-                part_info[part]["attempts"] += 1
+                part_info[part]["legend_attempts"] += 1
 
                 if random.random() < PROB_EPIC_TO_LEGEND:
                     ps["legend"] += 1
@@ -103,7 +106,7 @@ def simulate_one_run(start_state):
             if ps["elite"] >= 3:
                 ps["elite"] -= 3
                 total_cash_spent += COST_ELITE_TO_EPIC
-                part_info[part]["attempts"] += 1
+                part_info[part]["epic_attempts"] += 1
 
                 if random.random() < PROB_ELITE_TO_EPIC:
                     ps["epic"] += 1
@@ -156,7 +159,9 @@ def main():
         for part in PARTS:
             pr = result["parts"][part]
             status = "성공" if pr["success"] else "실패"
-            print(f"{part}: 시도횟수:{pr['attempts']} {status}")
+            ea = pr["epic_attempts"]
+            la = pr["legend_attempts"]
+            print(f"{part}: 에픽승급도전횟수:{ea}, 전설승급도전횟수:{la} {status}")
 
         print(f"사용된 현금: {result['cash']:,.0f}원\n")
 
@@ -180,7 +185,7 @@ def main():
         print(f"  최소: {min_cash:,.0f}원")
         print(f"  최대: {max_cash:,.0f}원")
     else:
-        print("\n성공한 시뮬레이션이 없습니다. (엘리트 수가 매우 부족한 설정일 수 있습니다.)")
+        print("\n성공한 시뮬레이션이 없습니다. (엘리트 수량이 4부위 전설 완성에는 많이 부족할 수 있습니다.)")
 
 
 if __name__ == "__main__":
