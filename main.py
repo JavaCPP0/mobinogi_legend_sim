@@ -1,13 +1,44 @@
 # main.py
+import re
 from config import PARTS
 from simulation import simulate_one_run
+
+
+def ask_target_parts():
+    print("어느 부위의 전설을 새로 노리실 건가요?")
+    print(f"선택 가능한 부위: {', '.join(PARTS)}")
+    print("쉼표(,) 또는 공백으로 구분해서 입력해주세요.")
+    print("예시) 상의, 하의  또는  상의 하의")
+    print("아무것도 입력하지 않고 Enter를 누르면 4부위 전부를 목표로 합니다.\n")
+
+    raw = input("전설 목표 부위 입력: ").strip()
+
+    if not raw:
+        # 전체 부위를 목표로
+        return None
+
+    tokens = [t.strip() for t in re.split(r"[,\s]+", raw) if t.strip()]
+    targets = []
+    for t in tokens:
+        if t in PARTS:
+            if t not in targets:
+                targets.append(t)
+        else:
+            print(f"경고: '{t}' 는 부위 목록에 없습니다. 무시합니다.")
+
+    if not targets:
+        print("유효한 부위가 없어 전체 부위를 목표로 설정합니다.\n")
+        return None
+
+    print(f"→ 이번 시뮬레이션의 목표 부위: {', '.join(targets)}\n")
+    return targets
 
 
 def main():
     print("==== 전설 패션 시뮬레이터 (현금 기준) ====")
     print("각 부위별 현재 보유한 '에픽'과 '엘리트' 개수를 입력해주세요.")
-    print("목표: 머리/상의/하의/장갑 전설 1개씩 만들기")
-    print("실패 시 재료 1개는 남는 규칙이 적용되어 있습니다.\n")
+    print("실패 시 재료 1개는 남는 규칙이 적용되어 있습니다.")
+    print("이미 전설을 보유한 부위는 '목표 부위'에서 제외하면 됩니다.\n")
 
     # 가챠 사용 여부
     use_gacha_input = input("추가 과금 패션 뽑기를 사용하시겠습니까? (y/N): ").strip().lower()
@@ -18,7 +49,10 @@ def main():
     else:
         print("→ 가챠 비사용 모드: 입력한 엘리트/에픽만 사용합니다.\n")
 
-    # 초기 보유 상태 입력
+    # 목표 부위 입력
+    target_parts = ask_target_parts()
+
+    # 초기 보유 상태 입력 (4부위 모두 입력은 그대로 유지)
     start_state = {}
     for part in PARTS:
         while True:
@@ -49,7 +83,7 @@ def main():
     fail_gacha_pulls = []
 
     for i in range(1, num_runs + 1):
-        result = simulate_one_run(start_state, use_gacha)
+        result = simulate_one_run(start_state, use_gacha, target_parts)
         results.append(result)
 
         print(f"{i}회차:")

@@ -17,7 +17,7 @@ from config import (
 )
 
 
-def simulate_one_run(start_state: dict, use_gacha: bool) -> dict:
+def simulate_one_run(start_state: dict, use_gacha: bool, target_parts=None) -> dict:
     """
     start_state 예시:
     {
@@ -27,15 +27,28 @@ def simulate_one_run(start_state: dict, use_gacha: bool) -> dict:
         "장갑":  {"elite": 40, "epic": 1},
     }
 
+    target_parts:
+        - 전설을 '새로' 노릴 부위 목록.
+        - None 또는 빈 리스트인 경우: PARTS 전체를 목표로 사용.
+        - target_parts에 없는 부위는
+          "이미 전설을 갖고 있는 부위" 로 간주하여 legend=1로 시작.
+
     use_gacha = False:
         - 입력한 엘리트/에픽만 사용.
-        - 더 이상 어떤 승급도 못 하고, 4부위 전설이 아니면 실패.
+        - 더 이상 승급 불가 + 아직 target_parts 전설 미완성 → 실패.
 
     use_gacha = True:
         - 재료가 모자라서 승급을 더 못 하는 순간마다,
           패션 뽑기(가챠)를 1회 돌려 재료 수급.
-        - 4부위 모두 전설이 될 때까지 계속 진행.
+        - target_parts 전부 전설 완성될 때까지 계속 진행.
     """
+    # 목표 부위 설정
+    if not target_parts:
+        target_parts = PARTS
+    else:
+        # 방어적으로 복사
+        target_parts = list(target_parts)
+
     state = copy.deepcopy(start_state)
 
     # 각 부위 상태 초기화
@@ -45,7 +58,12 @@ def simulate_one_run(start_state: dict, use_gacha: bool) -> dict:
         state[part].setdefault("rare", 0)    # 레어
         state[part].setdefault("elite", 0)
         state[part].setdefault("epic", 0)
-        state[part]["legend"] = 0
+
+        # 목표 부위면 전설 0개에서 시작, 그 외는 이미 전설 보유로 간주
+        if part in target_parts:
+            state[part]["legend"] = 0
+        else:
+            state[part]["legend"] = 1  # 이미 전설 보유라고 취급
 
         part_info[part] = {
             "epic_attempts": 0,    # 엘리트 -> 에픽 승급 시도 횟수
@@ -61,20 +79,21 @@ def simulate_one_run(start_state: dict, use_gacha: bool) -> dict:
         for part in PARTS
     }
 
-    def all_parts_done() -> bool:
-        return all(state[part]["legend"] >= 1 for part in PARTS)
+    def all_targets_done() -> bool:
+        # 목표로 삼은 부위들만 체크
+        return all(state[part]["legend"] >= 1 for part in target_parts)
 
     # =========================
     # 가챠 OFF 모드
     # =========================
     if not use_gacha:
         while True:
-            if all_parts_done():
+            if all_targets_done():
                 return _build_result(True, total_cash_spent, gacha_pulls, gacha_parts, part_info, state)
 
-            # 더 이상 행동 가능 여부 체크
+            # 목표 부위들 중에서 더 이상 행동 가능 여부 체크
             action_possible = False
-            for part in PARTS:
+            for part in target_parts:
                 ps = state[part]
                 if ps["legend"] >= 1:
                     continue
@@ -85,8 +104,8 @@ def simulate_one_run(start_state: dict, use_gacha: bool) -> dict:
             if not action_possible:
                 return _build_result(False, total_cash_spent, gacha_pulls, gacha_parts, part_info, state)
 
-            # 한 라운드: 각 부위 한 번씩
-            for part in PARTS:
+            # 한 라운드: 목표 부위만 돌면서 승급 시도
+            for part in target_parts:
                 ps = state[part]
 
                 if ps["legend"] >= 1:
@@ -122,12 +141,13 @@ def simulate_one_run(start_state: dict, use_gacha: bool) -> dict:
     # 가챠 ON 모드
     # =========================
     while True:
-        if all_parts_done():
+        if all_targets_done():
             return _build_result(True, total_cash_spent, gacha_pulls, gacha_parts, part_info, state)
 
         progress = False
 
-        for part in PARTS:
+        # 승급 가능한 건 다 우겨 넣기 (목표 부위만)
+        for part in target_parts:
             ps = state[part]
 
             if ps["legend"] >= 1:
@@ -182,7 +202,7 @@ def simulate_one_run(start_state: dict, use_gacha: bool) -> dict:
                     ps["common"] -= 2
                 progress = True
 
-        if all_parts_done():
+        if all_targets_done():
             continue
 
         if not progress:
@@ -200,6 +220,7 @@ def simulate_one_run(start_state: dict, use_gacha: bool) -> dict:
             else:
                 rarity = "common"
 
+            # 가챠는 실제 게임처럼 전체 부위에 떨어진다고 가정
             part = random.choice(PARTS)
             state[part][rarity] += 1
             gacha_parts[part][rarity] += 1
